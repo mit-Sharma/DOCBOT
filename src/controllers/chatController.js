@@ -2,6 +2,12 @@ import { streamText } from "ai";
 import { ChatInteraction } from "../models/ChatInteraction.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+
+
+
+
+
+
 // Initialize OpenAI API
 const google = new GoogleGenerativeAI({
     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY, 
@@ -15,33 +21,26 @@ export const processChat = async (req, res) => {
     if (!symptoms) {
       return res.status(400).json({ success: false, message: "Symptoms are required." });
     }
-
+    const model = google.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt1= `Analyze the following symptoms and provide possible diagnoses: ${symptoms}`;
     // Step 1: Generate Diagnosis Predictions
-    const diagnosisResponse = streamText({
-      model: google('gemini-1.5-pro-latest'),
-      prompt: `Analyze the following symptoms and provide possible diagnoses: ${symptoms}`,
-      max_tokens: 150,
-    });
-    const diagnosisPredictions = diagnosisResponse.data.choices[0].text.trim().split("\n").filter(Boolean);
+    const diagnosisResponse=await model.generateContent(prompt1);
+    const diagnosisPredictions=diagnosisResponse.response.text();
+    
 
     // Step 2: Find Nearby Hospitals
     let nearbyHospitals = [];
+    
     if (location) {
-      const hospitalResponse =  streamText({
-        model: google('gemini-1.5-pro-latest'),
-        prompt: `List three hospitals or clinics near ${location} for medical assistance.`,
-        max_tokens: 100,
-      });
-      nearbyHospitals = hospitalResponse.data.choices[0].text.trim().split("\n").filter(Boolean);
+    const prompt2=`List three hospitals or clinics near ${location} for medical assistance.`
+    const hospitalResponse =  await model.generateContent(prompt2);
+    const nearbyHospitals=hospitalResponse.response.text();
     }
 
     // Step 3: Generate Emergency Advice
-    const adviceResponse = streamText({
-      model:google('gemini-1.5-pro-latest'),
-      prompt: `Provide emergency advice for the following symptoms: ${symptoms}`,
-      max_tokens: 150,
-    });
-    const emergencyAdvice = adviceResponse.data.choices[0].text.trim();
+    const prompt3=`Provide emergency advice for the following symptoms: ${symptoms}`;
+    const adviceResponse =  await model.generateContent(prompt3);
+    const emergencyAdvice = adviceResponse.response.text();
 
     // Save Interaction to Database
     const interaction = new ChatInteraction({
